@@ -1,0 +1,70 @@
+body {
+  font-size: 1rem;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  background-color: #f8f9fa;
+}
+
+/* iPhone 16 기준 너비 고정 + 가운데 정렬 */
+.phone-wrapper {
+  width: 100%;
+  max-width: 390px;
+  background-color: white;
+  min-height: 100vh;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+/* 기본 네비게이션 스타일 */
+.navbar-brand {
+  font-size: 1.2rem;
+  padding-left: 10px;
+}
+
+.btn-menu {
+  border: none;
+  background: transparent;
+  padding: 0 10px;
+}
+
+/* 메뉴: 링크처럼 보이지 않게 */
+.offcanvas-body a {
+  text-decoration: none;
+  color: inherit;
+  font-size: 1.1rem;
+  display: block;
+  padding: 0.75rem 1rem;
+}
+
+.offcanvas-body a:hover {
+  background-color: #f1f1f1;
+}
+
+/* 부드러운 슬라이드 개선 */
+.offcanvas {
+  transition: transform 0.4s ease-in-out !important;
+}
+
+/* 메뉴 항목에도 부드러운 hover 효과 */
+.offcanvas-body a {
+  text-decoration: none;
+  color: inherit;
+  font-size: 1.1rem;
+  display: block;
+  padding: 0.75rem 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.offcanvas-body a:hover {
+  background-color: #f1f1f1;
+}
+/* 오프캔버스 너비 조정 */
+.offcanvas-end {
+  width: 260px !important;  /* 필요시 240~300px 조절 가능 */
+}
+
+.navbar-brand a {
+  text-decoration: none;
+  color: inherit;
+}
