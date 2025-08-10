@@ -1,13 +1,10 @@
 from flask import Blueprint, render_template, request, url_for
-import os, json
-import requests
-from typing import Optional, Dict, Any
-
-from .db import get_db
+import os, json, requests
 
 bp = Blueprint('menu1', __name__, url_prefix='/menu1')
 
 USE_MOCK = os.environ.get("OPENAI_MOCK", "0") == "1"
+
 client = None
 if not USE_MOCK:
   try:
@@ -16,18 +13,30 @@ if not USE_MOCK:
   except Exception:
     client = None
 
-def extract_hub_name(text: str) -> Optional[str]:
-  """Hub 테이블의 name들 중에서 질문에 포함된 것을 간단 매칭"""
-  if not text:
-    return None
-  names = [r["name"] for r in get_db().execute("SELECT name FROM Hub").fetchall()]
-  for name in names:
-    if name and name in text:
-      return name
-  return None
+# OpenAI tools 정의
+tools = [
+  {
+    "type": "function",
+    "function": {
+      "name": "get_available_bikes",
+      "description": "허브 이름으로 이용가능 자전거 수를 조회한다.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "hub_name": {
+            "type": "string",
+            "description": "허브의 정확한 이름(예: '정문 앞')"
+          }
+        },
+        "required": ["hub_name"]
+      }
+    }
+  }
+]
 
-def call_available_bikes_api(hub_name: str) -> Dict[str, Any]:
-  """내부 API(/available-bikes)를 HTTP로 호출해 결과 JSON 리턴"""
+
+def call_available_bikes_api(hub_name: str):
+  """내부 API(/available-bikes) 호출"""
   api_url = url_for("api.available_bikes", _external=True)
   try:
     res = requests.get(api_url, params={"hub_name": hub_name}, timeout=5)
@@ -44,35 +53,47 @@ def menu1():
   if request.method == "POST":
     question = (request.form.get("question") or "").strip()
     if question:
-      hub_name = extract_hub_name(question)
-      if hub_name:
-        structured = call_available_bikes_api(hub_name)
-        if structured.get("found"):
-          answer = f"'{structured['hub_name']}' 허브 이용가능 대수: {structured['available_bikes']}대"
-        else:
-          msg = structured.get("error")
-          answer = f"'{structured['hub_name']}' 허브를 찾을 수 없어요." + (f"\n[API ERROR] {msg}" if msg else "")
+      if USE_MOCK or client is None:
+        # MOCK 모드: 허브 이름 고정 예시
+        structured = {"hub_name": "정문 앞", "found": True, "available_bikes": 5}
+        answer = f"[MOCK] '{structured['hub_name']}' 허브 이용가능 대수: {structured['available_bikes']}대"
       else:
-        if USE_MOCK or client is None:
-          answer = (
-            f"[MOCK] 너가 물은 내용: {question}\n"
-            "(허브 이름이 문장에 포함되면 /available-bikes API를 자동으로 호출해요)"
+        try:
+          # GPT에게 질문 보내고 tool 호출 유도
+          resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": question}],
+            tools=tools,
+            tool_choice="auto"
           )
-        else:
-          try:
-            resp = client.responses.create(
-              model="gpt-4o-mini",
-              input=[{"role": "user", "content": question}]
-            )
-            answer = getattr(resp, "output_text", None)
-            if not answer:
-              parts = []
-              for out in getattr(resp, "output", []) or []:
-                for c in getattr(out, "content", []) or []:
-                  if getattr(c, "type", None) == "text":
-                    parts.append(getattr(c, "text", ""))
-              answer = "\n".join(p for p in parts if p).strip() or "(응답을 파싱하지 못했습니다)"
-          except Exception as e:
-            answer = f"[ERROR] {type(e).__name__}: {e}"
+
+
+          # tool call 추출
+          tool_call = None
+          tool_calls = resp.choices[0].message.tool_calls
+          if tool_calls:
+            tool_call = tool_calls[0]
+
+          if tool_call:
+            try:
+              name = tool_call.function.name
+              args = json.loads(tool_call.function.arguments)
+            except Exception:
+              name, args = None, {}
+
+            if name == "get_available_bikes" and "hub_name" in args:
+              structured = call_available_bikes_api(args["hub_name"])
+              if structured.get("found"):
+                answer = f"'{structured['hub_name']}' 허브 이용가능 대수: {structured['available_bikes']}대"
+              else:
+                msg = structured.get("error")
+                answer = f"'{structured['hub_name']}' 허브를 찾을 수 없어요." + (f"\n[API ERROR] {msg}" if msg else "")
+            else:
+              answer = "(허브 이름을 추출하지 못했습니다)"
+          else:
+              # 함수 호출이 없으면 일반 텍스트 응답 출력
+              answer = resp.choices[0].message.content or "(응답이 없습니다)"
+        except Exception as e:
+          answer = f"[ERROR] {type(e).__name__}: {e}"
 
   return render_template("menu1.html", question=question, answer=answer, structured=structured)

@@ -13,10 +13,21 @@
 </form>
 
 {% if answer %}
-<div class="card">
+<div class="card mb-3">
   <div class="card-header">AI Response</div>
   <div class="card-body">
     <p class="card-text" style="white-space: pre-line;">{{ answer }}</p>
+  </div>
+</div>
+{% endif %}
+
+{% if structured %}
+<div class="card">
+  <div class="card-header">Query Result</div>
+  <div class="card-body">
+    <div>허브: {{ structured.hub_name }}</div>
+    <div>조회 성공: {{ '예' if structured.found else '아니오' }}</div>
+    <div>이용가능 대수: {{ structured.available_bikes }}</div>
   </div>
 </div>
 {% endif %}
