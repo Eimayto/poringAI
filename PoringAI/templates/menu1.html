@@ -1,8 +1,25 @@
 {% extends "base.html" %}
-
-{% block title %}Menu1 - Poring AI{% endblock %}
+{% block title %}Chat - Poring AI{% endblock %}
 
 {% block content %}
-  <h2 class="mb-3">This is Menu1</h2>
-  <a href = "{{ url_for('index')}}">Click to Go back to Home.</a>
+<h2 class="mb-3">Chat with Poring AI</h2>
+
+<form method="post" class="mb-3">
+  <div class="mb-2">
+    <label for="question" class="form-label">Your Message:</label>
+    <textarea name="question" id="question" class="form-control" rows="3">{{ question or "" }}</textarea>
+  </div>
+  <button type="submit" class="btn btn-primary">Send</button>
+</form>
+
+{% if answer %}
+<div class="card">
+  <div class="card-header">AI Response</div>
+  <div class="card-body">
+    <p class="card-text" style="white-space: pre-line;">{{ answer }}</p>
+  </div>
+</div>
+{% endif %}
+
+<a href="{{ url_for('index') }}">Go back to Home</a>
 {% endblock %}
