@@ -33,6 +33,6 @@ def create_app(test_config = None):
   app.register_blueprint(menu4.bp)
 
   from .api import bp as api_bp
-  app.register_blueprint(api_bp)
+  app.register_blueprint(api_bp, url_prefix='/api')
   
   return app

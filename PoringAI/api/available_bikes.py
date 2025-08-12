@@ -1,10 +1,7 @@
-# api/api.py
-from flask import (
-  Blueprint, request, jsonify
-)
-from .db import get_db
-
-bp = Blueprint("api", __name__)
+from flask import request, jsonify, url_for
+import os, json, requests
+from ..db import get_db
+from . import bp
 
 @bp.route("/available-bikes", methods=["GET"])
 def available_bikes():
@@ -31,3 +28,12 @@ def available_bikes():
     "found" : True,
     "available_bikes" : int(row["cnt"])
   }), 200
+
+def fetch_available_bikes(hub_name: str):
+  """내부 API(/available-bikes) 호출"""
+  api_url = url_for("api.available_bikes", _external=True)
+  try:
+    res = requests.get(api_url, params={"hub_name": hub_name}, timeout=5)
+    return res.json()
+  except Exception as e:
+    return {"hub_name": hub_name, "found": False, "available_bikes": 0, "error": str(e)}

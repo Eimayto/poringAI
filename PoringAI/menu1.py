@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, url_for
 import os, json, requests
+from .api.available_bikes import fetch_available_bikes
 
 bp = Blueprint('menu1', __name__, url_prefix='/menu1')
 
@@ -33,16 +34,6 @@ tools = [
     }
   }
 ]
-
-
-def call_available_bikes_api(hub_name: str):
-  """내부 API(/available-bikes) 호출"""
-  api_url = url_for("api.available_bikes", _external=True)
-  try:
-    res = requests.get(api_url, params={"hub_name": hub_name}, timeout=5)
-    return res.json()
-  except Exception as e:
-    return {"hub_name": hub_name, "found": False, "available_bikes": 0, "error": str(e)}
 
 @bp.route('/', methods=["GET", "POST"])
 def menu1():
@@ -82,7 +73,7 @@ def menu1():
               name, args = None, {}
 
             if name == "get_available_bikes" and "hub_name" in args:
-              structured = call_available_bikes_api(args["hub_name"])
+              structured = fetch_available_bikes(args["hub_name"])
               if structured.get("found"):
                 answer = f"'{structured['hub_name']}' 허브 이용가능 대수: {structured['available_bikes']}대"
               else:
