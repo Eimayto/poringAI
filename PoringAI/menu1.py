@@ -69,7 +69,6 @@ def menu1():
             tool_choice="auto"
           )
 
-          print(resp)
           # tool call 추출
           tool_call = None
           tool_calls = resp.choices[0].message.tool_calls
@@ -89,9 +88,9 @@ def menu1():
               # For Log
               print(structured)
               
-              if structured.get("found"):
+              if not structured.get("error"):
                 # answer = f"'{structured['hub_name']}' 허브 이용가능 대수: {structured['available_bikes']}대"
-                answer = structured['message']
+                answer = structured['content']
               else:
                 msg = structured.get("error")
                 answer = f"'{structured['hub_name']}' 허브를 찾을 수 없어요." + (f"\n[API ERROR] {msg}" if msg else "")
