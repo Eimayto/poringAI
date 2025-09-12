@@ -23,11 +23,18 @@ def available_bikes():
     (hub["hub_id"], ),
   ).fetchone()
 
-  return jsonify({
+  data = {
     "hub_name" : hub_name,
     "found" : True,
     "available_bikes" : int(row["cnt"])
-  }), 200
+  }
+  print(data)
+  return generate_sentence(data)
+  # return jsonify({
+  #   "hub_name" : hub_name,
+  #   "found" : True,
+  #   "available_bikes" : int(row["cnt"])
+  # }), 200
 
 def fetch_available_bikes(hub_name: str):
   """내부 API(/available-bikes) 호출"""
@@ -37,3 +44,35 @@ def fetch_available_bikes(hub_name: str):
     return res.json()
   except Exception as e:
     return {"hub_name": hub_name, "found": False, "available_bikes": 0, "error": str(e)}
+  
+def generate_sentence(data):
+  try:
+    messages_for_model = [
+      {"role": "system", "content":"You are Poring-AI, a chatbot for a bike rental service. You will engage in natural conversation with the user to tell them the number of available bikes at a specified location. If there are no bikes at that location, recommend the nearest alternative station. Rules: 1) Always maintain a friendly and warm tone. 2) Keep answers concise, limited to 1-2 sentences. 3) Do not provide unnecessary explanations, background information, or verbose descriptions. 4) Avoid an overly humorous or casual tone. 5) Always respond in short, clear Korean sentences."},
+      {"role":"user", "content": f"다음 값을 자연스럽게 한문장으로 바꿔줘 허브이름 : {data['hub_name']}, 자전거 개수 : {data['available_bikes']}"}
+    ]
+    
+    ## TODO : MOCK 넣기 
+    from openai import OpenAI   
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    # GPT에게 질문 보내기
+    resp = client.chat.completions.create(
+      model="gpt-4o-mini",
+      messages=messages_for_model,
+      temperature=0.1
+    )
+
+
+    # output 추출
+    output = resp.choices[0].message.content
+
+    data["message"] = output
+    
+    return jsonify(data), 200
+              
+  except Exception as e:
+    data["found"] = False
+    print(e)
+    return jsonify(data), 400
+    
