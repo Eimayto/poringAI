@@ -34,7 +34,7 @@ tools = [
         "properties": {
           "hub_name": {
             "type": "string",
-            "description": "허브의 정확한 이름(예: '정문 앞')" ## TODO : 허브 이름 나열해주기
+            "description": "허브의 정확한 이름을 추출해줘. 허브 이름에는 무은재기념관, 학생회관, 환경공학동, 생활관21동, 생활관3동, 생활관12동, 생활관15동, 박태준학술정보관, 친환경소재대학원, 제1실험동, 기계실험동, 가속기IBS가 있어. 지역에는 교사지역, 생활관지역, 인화지역, 가속기&연구실험동이 있어. 교사지역에 있는 허브로는 무은재기념관, 학생회관, 환경공학동이 있어. 생활관지역에는 생활관21동, 생활관3동, 생활관12동, 생활관15동이 있어. 인화지역에 있는 허브는 박태준학술정보관, 친환경소재대학원이 있어. 가속기&연구실험동에 있는 허브는 제1실험동, 기계실험동, 가속기IBS가 있어." # 자동으로 db에서 허브 이름 가져오는 시스템이 필요할듯
           }
         },
         "required": ["hub_name"]
@@ -83,7 +83,8 @@ def menu1():
               name, args = None, {}
 
             if name == "get_available_bikes" and "hub_name" in args:
-              structured = fetch_available_bikes(args["hub_name"])
+              # 0번째 : 실질적인 정보, 1번째 : status 코드
+              structured = fetch_available_bikes(args["hub_name"])[0]
               
               # For Log
               print(structured)
