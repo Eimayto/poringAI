@@ -17,3 +17,19 @@ def fetch_available_bikes(hub_name: str):
     return res.json(), res.status_code
   except Exception as e:
     return {"hub_name": hub_name, "found": False, "available_bikes": 0, "error": str(e)}, 500
+
+    
+def fetch_available_nearby_bikes(lat: float, lon: float, radius_km=None, limit=None):
+  """
+  내부 API /api/available-nearby-bikes를 호출해 가까운 허브 목록을 그대로 받아온다.
+  서버 내부에서 거리 계산은 하지 않는다(요청만 전달).
+  """
+  api_url = url_for("api.available_nearby_bikes", _external=True)
+  params = {"lat": lat, "lon": lon}
+  if radius_km is not None:
+      params["r_km"] = radius_km
+  if limit is not None:
+      params["limit"] = limit
+
+  res = requests.get(api_url, params=params, timeout=5)
+  return res.json(), res.status_code
