@@ -2,7 +2,6 @@ from flask import Blueprint, render_template, request, url_for, session
 from collections import deque
 import time
 import os, json, requests
-from .api.available_bikes import fetch_available_bikes
 
 # 캐시 세팅
 HIST_KEY = "menu1_hist" # Flask session에 저장할 키
@@ -144,4 +143,12 @@ def _append(role, content):
 def _clear_history():
   session[HIST_KEY] = []
   session.modified = True
-  
+
+def fetch_available_bikes(hub_name: str):
+  """내부 API(/available-bikes) 호출"""
+  api_url = url_for("api.available_bikes", _external=True)
+  try:
+    res = requests.get(api_url, params={"hub_name": hub_name}, timeout=5)
+    return res.json(), res.status_code
+  except Exception as e:
+    return {"hub_name": hub_name, "found": False, "available_bikes": 0, "error": str(e)}, 500
