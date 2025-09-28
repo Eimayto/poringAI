@@ -10,15 +10,19 @@ def available_bikes():
     return jsonify({"error": "hub_name 쿼리 파라미터가 필요합니다."}), 400
 
   db = get_db()
-  hub = db.execute("SELECT hub_id FROM Hub WHERE name = ?", (hub_name,)).fetchone()
+  hub = db.execute("SELECT hub_id FROM hubs WHERE hub_name = ?", (hub_name,)).fetchone()
   if not hub:
     return jsonify({"hub_name" : hub_name, "found" : False, "available_bikes": 0, "error" : f"{hub_name} 허브를 찾을 수 없습니다."}), 200
 
   row = db.execute(
     '''
     SELECT COUNT(*) AS cnt
-    FROM Bike
-    WHERE current_hub_id = ? AND (is_available = 1)
+    FROM bikes
+    WHERE assigned_hub_id = ?
+      AND is_active = 1
+      AND is_under_repair = 0
+      AND is_retired = 0
+      AND status = 'Returned'
     ''',
     (hub["hub_id"], ),
   ).fetchone()
