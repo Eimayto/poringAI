@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, url_for, session
 from collections import deque
 import time
 import os, json, requests
-from .api import fetch_available_bikes
+from .api import fetch_available_bikes, fetch_available_nearby_bikes
 
 # 캐시 세팅
 HIST_KEY = "menu1_hist" # Flask session에 저장할 키
@@ -40,6 +40,12 @@ tools = [
         "required": ["hub_name"]
       }
     }
+  }, {
+    "type": "function",
+    "function": {
+      "name": "get_available_nearby_bikes",
+      "description": "자신 근처에 있는 허브의 이용가능 자전거 수를 조회한다."
+    }
   }
 ]
 
@@ -51,6 +57,9 @@ def menu1():
 
   if request.method == "POST":
     question = (request.form.get("question") or "").strip()
+    latitude = request.form.get("latitude")
+    longitude = request.form.get("longitude")
+
     if question:
       if USE_MOCK or client is None:
         # MOCK 모드: 허브 이름 고정 예시
@@ -95,6 +104,18 @@ def menu1():
               else:
                 msg = structured.get("error")
                 answer = f"'{structured['hub_name']}' 허브를 찾을 수 없어요." + (f"\n[API ERROR] {msg}" if msg else "")
+
+            elif name == "get_available_nearby_bikes":
+                structured = fetch_available_nearby_bikes(latitude, longitude)[0]
+
+                print(structured)
+
+                if not structured.get("error"):
+                  answer = structured['content']
+                else:
+                  msg = structured.get("error")
+                  answer = f"'{structured['hub_name']}' 허브를 찾을 수 없어요." + (f"\n[API ERROR] {msg}" if msg else "")
+
             else:
               answer = "(허브 이름을 추출하지 못했습니다)"
           else:

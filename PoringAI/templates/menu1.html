@@ -4,12 +4,16 @@
 {% block content %}
 <h2 class="mb-3">Chat with Poring AI</h2>
 
-<form method="post" class="mb-3">
+<form method="post" class="mb-3" id="chat-form">
   <div class="mb-2">
     <label for="question" class="form-label">Your Message:</label>
     <textarea name="question" id="question" class="form-control" rows="3">{{ question or "" }}</textarea>
   </div>
-  <button type="submit" class="btn btn-primary">Send</button>
+  
+  <input type="hidden" name="latitude">
+  <input type="hidden" name="longitude">
+  
+  <button type="submit" class="btn btn-primary" id="submit-btn">Send</button>
 </form>
 
 {% if answer %}
@@ -33,4 +37,56 @@
 {% endif %}
 
 <a href="{{ url_for('index') }}">Go back to Home</a>
+
+<script>
+    const chatForm = document.getElementById('chat-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const latInput = document.querySelector('input[name="latitude"]');
+    const lonInput = document.querySelector('input[name="longitude"]');
+
+    // 폼(chat-form)이 제출(submit)될 때 이 함수를 실행
+    chatForm.addEventListener('submit', function(event) {
+        // 1. 폼의 기본 제출 동작을 일단 막습니다. (서버로 바로 전송되는 것을 막음)
+        event.preventDefault();
+        
+        // 버튼 비활성화 및 텍스트 변경
+        submitBtn.disabled = true;
+        submitBtn.textContent = '위치 찾는 중...';
+
+        // 2. Geolocation API(GPS) 지원 여부 확인
+        if (!navigator.geolocation) {
+            alert('이 기기에서 위치를 사용할 수 없어요. 질문만 전송합니다.');
+            chatForm.submit(); // 위치 없이 그냥 폼을 제출
+            return;
+        }
+
+        // 3. 위치 정보 요청 (비동기)
+        navigator.geolocation.getCurrentPosition(
+            // 3-1. 위치 가져오기 성공 시
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                
+                // 숨겨진 필드 2개에 위도, 경도 값 채우기
+                latInput.value = latitude;
+                lonInput.value = longitude;
+                
+                // 값이 채워졌으니 폼 제출을 다시 실행
+                chatForm.submit();
+            },
+            // 3-2. 위치 가져오기 실패 시 (예: 사용자가 '거부' 클릭)
+            (error) => {
+                let msg = "위치 정보를 가져오는 데 실패했습니다.";
+                if (error.code === error.PERMISSION_DENIED) {
+                    msg = "위치 권한이 거부되었습니다.";
+                }
+                alert(msg + " 위치 정보 없이 질문을 전송합니다.");
+                
+                // 폼 제출을 다시 실행 (위치 정보는 비어있음)
+                chatForm.submit();
+            },
+            // 옵션: 더 높은 정확도, 5초 타임아웃
+            { enableHighAccuracy: true, timeout: 5000 }
+        );
+    });
+</script>
 {% endblock %}
