@@ -1,12 +1,13 @@
-from flask import Blueprint, render_template, request, url_for, session
+from flask import Blueprint, render_template, request, url_for, session, redirect
 from collections import deque
 import time
 import os, json, requests
 from .api import fetch_available_bikes, fetch_available_nearby_bikes
+from datetime import datetime
 
 # 캐시 세팅
 HIST_KEY = "menu1_hist" # Flask session에 저장할 키
-MAX_MSGS = 8            # 최근 N개만 잡기
+MAX_MSGS = 16            # 최근 N개만 잡기
 TTL_SEC = 60 * 30      # 30분 TTL, 0이면 비활성
 
 
@@ -48,6 +49,13 @@ tools = [
     }
   }
 ]
+
+@bp.app_template_filter('hm')
+def hm(ts):
+    try:
+        return datetime.fromtimestamp(int(ts)).strftime('%H:%M')
+    except Exception:
+        return ''
 
 @bp.route('/', methods=["GET", "POST"])
 def menu1():
@@ -123,6 +131,7 @@ def menu1():
               answer = resp.choices[0].message.content or "(응답이 없습니다)"
               
           
+          
           # For Log
           _append("user", question)
           _append("system", answer)
@@ -131,7 +140,15 @@ def menu1():
         except Exception as e:
           answer = f"[ERROR] {type(e).__name__}: {e}"
 
-  return render_template("menu1.html", question=question, answer=answer, structured=structured)
+        return redirect(url_for('menu1.menu1'))
+
+  # return render_template("menu1.html", question=question, answer=answer, structured=structured)
+  history = _get_history()
+  return render_template(
+      "menu1.html",
+      structured=structured,
+      history=history,
+  )
 
 
 # 현재 시간 반환
@@ -157,6 +174,7 @@ def _get_history():
   return hist
 
 def _append(role, content):
+  content = (content or "").strip()
   hist = _get_history()
   hist.append({"role":role, "content":content, "ts" : _now_ts()})
   session[HIST_KEY] = _prune(hist)

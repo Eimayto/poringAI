@@ -1,32 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Chat - Poring AI{% endblock %}
 
-{% block content %}
-<h2 class="mb-3">Chat with Poring AI</h2>
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+{% endblock %}
 
-<form method="post" class="mb-3" id="chat-form">
-  <div class="mb-2">
-    <label for="question" class="form-label">Your Message:</label>
-    <textarea name="question" id="question" class="form-control" rows="3">{{ question or "" }}</textarea>
-  </div>
-  
+{% block body_class %}chat-page{% endblock %}
+
+{% block content %}
+
+<!-- 채팅창 -->
+<div class="chat-window mb-0" id="chat-window">
+  {% if history and history|length > 0 %}
+    {% for m in history %}
+      <div class="msg {{ 'me' if m.role == 'user' else 'bot' }}">
+        <div class="avatar">{{ 'Me' if m.role == 'user' else 'P' }}</div>
+        <div class="bubble">
+          <div class="content">{{ m.content | trim }}</div>
+          {% if m.ts %}
+            <div class="meta">{{ m.ts | hm }}</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-hint text-muted">아직 대화가 없어요. 메시지를 입력해보세요.</div>
+  {% endif %}
+  <div id="chat-bottom-anchor" aria-hidden="true"></div>
+</div>
+
+<!-- 입력창 (하단 고정) -->
+<form method="post" id="chat-form" class="composer">
   <input type="hidden" name="latitude">
   <input type="hidden" name="longitude">
-  
-  <button type="submit" class="btn btn-primary" id="submit-btn">Send</button>
+
+  <div class="composer-inner">
+    <textarea name="question" id="question" class="composer-input" rows="1" placeholder="메시지를 입력하세요"></textarea>
+    <button type="submit" class="btn btn-primary composer-send" id="submit-btn">Send</button>
+  </div>
 </form>
 
-{% if answer %}
-<div class="card mb-3">
-  <div class="card-header">AI Response</div>
-  <div class="card-body">
-    <p class="card-text" style="white-space: pre-line;">{{ answer }}</p>
-  </div>
-</div>
-{% endif %}
-
-{% if structured %}
-<div class="card">
+<!-- {% if structured %}
+<div class="card mt-3">
   <div class="card-header">Query Result</div>
   <div class="card-body">
     <div>허브: {{ structured.hub_name }}</div>
@@ -34,59 +49,83 @@
     <div>이용가능 대수: {{ structured.available_bikes }}</div>
   </div>
 </div>
-{% endif %}
-
-<a href="{{ url_for('index') }}">Go back to Home</a>
+{% endif %} -->
 
 <script>
-    const chatForm = document.getElementById('chat-form');
-    const submitBtn = document.getElementById('submit-btn');
-    const latInput = document.querySelector('input[name="latitude"]');
-    const lonInput = document.querySelector('input[name="longitude"]');
+  // === 스크롤 헬퍼 ===
+  const chatWindow  = document.getElementById('chat-window');
+  const bottomAnchor = document.getElementById('chat-bottom-anchor');
 
-    // 폼(chat-form)이 제출(submit)될 때 이 함수를 실행
-    chatForm.addEventListener('submit', function(event) {
-        // 1. 폼의 기본 제출 동작을 일단 막습니다. (서버로 바로 전송되는 것을 막음)
-        event.preventDefault();
-        
-        // 버튼 비활성화 및 텍스트 변경
-        submitBtn.disabled = true;
-        submitBtn.textContent = '위치 찾는 중...';
+  function scrollToBottom({ force=false } = {}) {
+    if (!chatWindow || !bottomAnchor) return;
+    // 사용자가 거의 바닥에 있을 때만 자동 스크롤 (원치 않는 점프 방지)
+    const slack = chatWindow.scrollHeight - chatWindow.scrollTop - chatWindow.clientHeight;
+    const nearBottom = slack < 120;
+    if (force || nearBottom) {
+      bottomAnchor.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }
 
-        // 2. Geolocation API(GPS) 지원 여부 확인
-        if (!navigator.geolocation) {
-            alert('이 기기에서 위치를 사용할 수 없어요. 질문만 전송합니다.');
-            chatForm.submit(); // 위치 없이 그냥 폼을 제출
-            return;
-        }
+  // ① 최초 로드 시: 강제로 맨 아래
+  window.addEventListener('load', () => {
+    scrollToBottom({ force: true });
 
-        // 3. 위치 정보 요청 (비동기)
-        navigator.geolocation.getCurrentPosition(
-            // 3-1. 위치 가져오기 성공 시
-            (position) => {
-                const { latitude, longitude } = position.coords;
-                
-                // 숨겨진 필드 2개에 위도, 경도 값 채우기
-                latInput.value = latitude;
-                lonInput.value = longitude;
-                
-                // 값이 채워졌으니 폼 제출을 다시 실행
-                chatForm.submit();
-            },
-            // 3-2. 위치 가져오기 실패 시 (예: 사용자가 '거부' 클릭)
-            (error) => {
-                let msg = "위치 정보를 가져오는 데 실패했습니다.";
-                if (error.code === error.PERMISSION_DENIED) {
-                    msg = "위치 권한이 거부되었습니다.";
-                }
-                alert(msg + " 위치 정보 없이 질문을 전송합니다.");
-                
-                // 폼 제출을 다시 실행 (위치 정보는 비어있음)
-                chatForm.submit();
-            },
-            // 옵션: 더 높은 정확도, 5초 타임아웃
-            { enableHighAccuracy: true, timeout: 5000 }
-        );
+    // ② 이미지가 뒤늦게 로드되며 높이가 늘어날 때도 재하단
+    chatWindow.querySelectorAll('img').forEach(img => {
+      if (img.complete) return;            // 이미 로드된 건 패스
+      img.addEventListener('load', () => { // 로드 뒤 살짝 지연 후 스크롤
+        setTimeout(() => scrollToBottom({ force: true }), 0);
+      });
     });
+  });
+
+  // === textarea 자동 리사이즈 ===
+  const ta = document.getElementById('question');
+  const autoresize = () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+  };
+  ['input','change'].forEach(ev => ta.addEventListener(ev, autoresize));
+  window.addEventListener('load', autoresize);
+
+  // === Enter로 전송 (Shift+Enter는 줄바꿈) ===
+  ta.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('chat-form').dispatchEvent(new Event('submit', {cancelable:true}));
+    }
+  });
+
+  // === 위치 권한 + 전송 ===
+  const chatForm = document.getElementById('chat-form');
+  const submitBtn = document.getElementById('submit-btn');
+  const latInput = document.querySelector('input[name="latitude"]');
+  const lonInput = document.querySelector('input[name="longitude"]');
+
+  chatForm.addEventListener('submit', function(event) {
+    event.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = '위치 찾는 중...';
+
+    const submitNow = () => chatForm.submit();
+
+    if (!navigator.geolocation) {
+      submitNow();
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        latInput.value = latitude;
+        lonInput.value = longitude;
+        submitNow();
+      },
+      // 에러시 정보 없이 그냥 전송
+      () => submitNow(),
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  });
 </script>
+
+
 {% endblock %}
