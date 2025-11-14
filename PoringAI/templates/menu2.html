@@ -138,10 +138,10 @@
   function markerColor(parked, total) {
     if (!total || total <= 0) return '#666';
     const r = parked / total;
-    if (r >= 0.9) return '#e53935';    // 매우 혼잡
-    if (r >= 0.7) return '#fb8c00';    // 혼잡
-    if (r >= 0.4) return '#43a047';    // 보통
-    return '#1e88e5';                  // 여유
+    if (r >= 0.9) return '#1e88e5';    // 여유
+    if (r >= 0.7) return '#43a047';    // 보통
+    if (r >= 0.4) return '#fb8c00';    // 혼잡
+    return '#e53935';                  // 매우 혼잡
   }
 
   // SVG 원형 커스텀 아이콘
