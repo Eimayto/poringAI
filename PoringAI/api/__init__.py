@@ -6,7 +6,7 @@ bp = Blueprint("api", __name__)
 from . import available_bikes
 from . import generate_sentence
 from . import available_nearby_bikes
-
+from . import rent
 
 
 def fetch_available_bikes(hub_name: str):
@@ -38,3 +38,60 @@ def fetch_available_nearby_bikes(lat: float, lon: float):
         "available_bikes": 0,
         "error": str(e)
     }, 500
+
+def fetch_rent_bike_normal(bike_id=None):
+  if not bike_id:
+    try:
+      # 바이크 내가 고르기!
+      return {
+                "success": False,
+                "error": "대여할 자전거(bike_id)가 선택되지 않았습니다."
+            }, 400
+    except Exception as e:
+      return {
+                "success": False,
+                "error": f"bike_id 처리 중 오류: {e}"
+            }, 500
+
+  api_url = url_for("api.rent_bike_normal", _external=True)
+  try:
+    res = requests.post(api_url, json={"bike_id": bike_id, "user_id" : session.get('user_id')}, timeout=5)
+    rent_json, rent_status = res.json(), res.status_code
+  except Exception as e:
+    return {
+            "success": False,
+            "error": f"rent-normal API 요청 중 오류가 발생했습니다: {e}"
+        }, 500
+
+  if rent_status >= 400:
+    return rent_json, rent_status
+
+  gen_url = url_for("api.generate_sentence", _external=True)
+
+  try:
+    gen_res = requests.post(gen_url,
+                          json={
+                              "messages_for_model": [{
+                                "role": "system",
+                                "content": (
+                                    "너는 자전거 공유 서비스 안내 챗봇이야. "
+                                    "주어진 API 응답(JSON)을 읽고, 사용자가 이해하기 쉬운 "
+                                    "한국어 한두 문장으로 결과를 자연스럽게 설명해줘."
+                                )
+                                },
+                                {
+                                    "role": "user",
+                                    "content": f"다음은 rent-normal API 응답이야:\n{json.dumps(rent_json, ensure_ascii=False)}"
+                                }],
+                              "data": {
+                                "type": "rent_normal",
+                                "api_response": rent_json
+                              }
+                          })  
+    return gen_res.json(), gen_res.status_code
+  except Exception as e:
+    return {
+            "success": False,
+            "error": f"문장 생성 중 오류가 발생했습니다: {e}",
+            "fallback": rent_json
+        }, 500

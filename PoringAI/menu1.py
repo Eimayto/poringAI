@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, url_for, session, redirec
 from collections import deque
 import time
 import os, json, requests
-from .api import fetch_available_bikes, fetch_available_nearby_bikes
+from .api import fetch_available_bikes, fetch_available_nearby_bikes, fetch_rent_bike_normal
 from datetime import datetime
 
 # 캐시 세팅
@@ -46,6 +46,22 @@ tools = [
     "function": {
       "name": "get_available_nearby_bikes",
       "description": "이 함수는 반드시 사용자의 '현재 위치'를 기준으로 가까운 허브의 자전거 대수를 알고 싶을 때만 호출된다. 즉 질문 안에 '내', '나', '지금', '현재', '여기', 'near me', 'around me', 'nearby here'처럼 사용자의 현재 위치를 직접 가리키는 표현이 포함되어 있어야 한다. 예: '내 근처 자전거 몇 대 있어?', '지금 여기 주변 허브 알려줘', 'near me bikes'. 이러한 표현이 있을 때만 이 함수를 사용한다. 반대로 특정 지역이나 장소 이름을 기준으로 한 표현일 때는 절대 이 함수를 호출하지 않는다. 예: '생활관 근처 자전거 대수 알려줘', '무은재기념관 근처 허브 알려줘', '환경공학동 주변 자전거 알려줘'처럼 특정 건물/지역을 기준으로 말하는 경우는 get_available_bikes를 사용해야 한다. 정리: '나 / 내 / 지금 / 여기' = get_available_nearby_bikes, '특정 장소 이름 / 지역 이름' = get_available_bikes."
+    }
+  }, {
+    "type": "function",
+    "function": {
+      "name": "rent_bike_normal_with_id",
+      "description": "bike_id를 갖고 자전거를 대여한다! 꼭 bike_id를 알려줘야된다",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "bike_id": {
+            "type": "string",
+            "description": "bike_id 혹은 자전거 번호를 가져온다"
+          }
+        },
+        "required": ["bike_id"]
+      }
     }
   }
 ]
@@ -123,6 +139,19 @@ def menu1():
                 else:
                   msg = structured.get("error")
                   answer = f"'{structured['hub_name']}' 허브를 찾을 수 없어요." + (f"\n[API ERROR] {msg}" if msg else "")
+
+            elif name == "rent_bike_normal_with_id" and "bike_id" in args:
+              print(args["bike_id"])
+              structured = fetch_rent_bike_normal(args["bike_id"])[0]
+
+              print(structured)
+
+              if not structured.get("error"):
+                answer = structured['content']
+              
+              else:
+                msg = structured.get("error")
+                answer = f"\n[API ERROR] {msg}" if msg else ""
 
             else:
               answer = "(허브 이름을 추출하지 못했습니다)"
