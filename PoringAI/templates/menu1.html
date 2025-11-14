@@ -14,7 +14,10 @@
   {% if history and history|length > 0 %}
     {% for m in history %}
       <div class="msg {{ 'me' if m.role == 'user' else 'bot' }}">
-        <div class="avatar">{{ 'Me' if m.role == 'user' else 'P' }}</div>
+        <!-- <div class="avatar">{{ 'Me' if m.role == 'system' else 'P' }}</div> -->
+        {% if m.role == 'system' %}
+          <div class="avatar">{{ 'P' }}</div>
+        {% endif %}
         <div class="bubble">
           <div class="content">{{ m.content | trim }}</div>
           {% if m.ts %}
