@@ -163,7 +163,8 @@ def rent_bike_normal():
             "message": "대여가 시작되었습니다.",
             "rental_id": new_rental_id,
             "start_at": start_at_iso,
-            "user_id": user_id
+            "user_id": user_id,
+            "bike_id": bike_id
         }), 201
 
     except sqlite3.Error as e:
