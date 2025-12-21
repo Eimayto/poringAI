@@ -7,6 +7,7 @@ from . import available_bikes
 from . import generate_sentence
 from . import available_nearby_bikes
 from . import rent
+from . import rent_recommand
 
 
 def fetch_available_bikes(hub_name: str):
@@ -94,4 +95,26 @@ def fetch_rent_bike_normal(bike_id=None):
             "success": False,
             "error": f"문장 생성 중 오류가 발생했습니다: {e}",
             "fallback": rent_json
+        }, 500
+
+def fetch_rent_recommand(hub_name=None):
+    """
+    내부 API /api/rent-recommand 호출
+    추천 bike_id 목록을 받아온다.
+    """
+    api_url = url_for("api.rent_recommand", _external=True)
+
+    params = {}
+    if hub_name is not None:
+        params['hub_name'] = hub_name
+    
+
+    try:
+        res = requests.get(api_url, params=params, timeout=5)
+        return res.json(), res.status_code
+    except Exception as e:
+        return {
+            "success": False,
+            "bike_ids": [],
+            "error": f"rent_recommand API 요청 실패: {e}"
         }, 500
