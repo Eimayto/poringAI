@@ -2,7 +2,8 @@ from flask import request, jsonify, url_for
 import os, json, requests
 from ..db import get_db
 from . import bp
-
+from flask import session
+from math import sqrt
 
 def _find_nearest_hub(user_lat, user_lon, db):
     """
@@ -34,7 +35,7 @@ def _find_nearest_hub(user_lat, user_lon, db):
             min_dist_sq = dist_sq
             nearest_hub = hub['hub_name']
             
-    return nearest_hub
+    return nearest_hub, min_dist_sq
 
 @bp.route("/available-nearby-bikes", methods=["GET"])
 def available_nearby_bikes():
@@ -69,7 +70,7 @@ def available_nearby_bikes():
 
         
   db = get_db()
-  nearest_hub = _find_nearest_hub(lat_raw, lon_raw, db)
+  nearest_hub, dist_sq = _find_nearest_hub(lat_raw, lon_raw, db)
   print(f'nearest_hub : {nearest_hub}')
   if nearest_hub == None:
     return jsonify({
@@ -99,7 +100,8 @@ def available_nearby_bikes():
   data = {
     "hub_name" : nearest_hub,
     "found" : True,
-    "available_bikes" : int(row["cnt"])
+    "available_bikes" : int(row["cnt"]),
+    "distance" : sqrt(dist_sq)
   }
   print(data)
   
