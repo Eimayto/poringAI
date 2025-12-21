@@ -2,13 +2,17 @@ from flask import Blueprint, render_template, request, url_for, session, redirec
 from collections import deque
 import time
 import os, json, requests
-from .api import fetch_available_bikes, fetch_available_nearby_bikes, fetch_rent_bike_normal
+from .api import fetch_available_bikes, fetch_available_nearby_bikes, fetch_rent_bike_normal, fetch_rent_recommand
 from datetime import datetime
 
 # 캐시 세팅
 HIST_KEY = "menu1_hist" # Flask session에 저장할 키
 MAX_MSGS = 16            # 최근 N개만 잡기
 TTL_SEC = 60 * 30      # 30분 TTL, 0이면 비활성
+WAITING_RENT_CONFORM = 'waiting_rent_conform'
+RECOMMAND_DISTANCE = 100 # meter
+
+
 
 
 bp = Blueprint('menu1', __name__, url_prefix='/menu1')
@@ -84,6 +88,43 @@ def menu1():
     latitude = request.form.get("latitude")
     longitude = request.form.get("longitude")
 
+    if session.get(WAITING_RENT_CONFORM):
+      intent = classify_yes_no_with_gpt(question, client)
+      if intent == 'YES':
+          rec, _ = fetch_rent_recommand(session.get('last_nearby_hub_name'))
+
+          bike_ids = rec.get("bike_ids", [])
+          if bike_ids:
+              bike_id = bike_ids[0]
+
+              structured = fetch_rent_bike_normal(
+                  bike_id
+              )[0]
+
+              answer = structured.get("content")
+
+          # 상태 종료
+          session.pop(WAITING_RENT_CONFORM, None)
+          session.modified = True
+
+          _append("user", question)
+          _append("system", answer)
+          return redirect(url_for("menu1.menu1"))
+
+      elif intent == 'NO':
+          answer = "알겠습니다. 필요하시면 다시 말씀해주세요."
+
+          session.pop(WAITING_RENT_CONFORM, None)
+          session.modified = True
+
+          _append("user", question)
+          _append("system", answer)
+          return redirect(url_for("menu1.menu1"))
+
+      else:
+        session.pop(WAITING_RENT_CONFORM, None)
+        session.modified = True
+
     if question:
       if USE_MOCK or client is None:
         # MOCK 모드: 허브 이름 고정 예시
@@ -136,6 +177,16 @@ def menu1():
 
                 if not structured.get("error"):
                   answer = structured['content']
+
+                  distance = structured.get("distance")  # recommend API에서 내려준다고 가정
+
+                  if distance is not None and distance <= RECOMMAND_DISTANCE:
+                      answer += "\n대여하시겠습니까? (네 / 아니요)"
+
+                      # 상태 저장
+                      session["last_nearby_hub_name"] = structured.get('hub_name')
+                      session[WAITING_RENT_CONFORM] = True
+                      session.modified = True
                 else:
                   msg = structured.get("error")
                   answer = f"'{structured['hub_name']}' 허브를 찾을 수 없어요." + (f"\n[API ERROR] {msg}" if msg else "")
@@ -178,7 +229,7 @@ def menu1():
       structured=structured,
       history=history,
   )
-
+  
 
 # 현재 시간 반환
 def _now_ts():
@@ -213,3 +264,25 @@ def _clear_history():
   session[HIST_KEY] = []
   session.modified = True
 
+
+# 답변 긍정 / 부정 판단
+def classify_yes_no_with_gpt(text, client):
+  resp = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+      {
+        "role": "system",
+        "content": (
+          "다음 사용자 발화를 보고 의도를 판단해라.\n"
+          "자전거 대여에 대해:\n"
+          "- YES (대여 의사 있음)\n"
+          "- NO (대여 의사 없음)\n"
+          "- UNKNOWN (판단 불가)\n"
+          "중 하나만 대문자로 출력해라."
+        )
+      },
+      {"role": "user", "content": text}
+    ],
+    temperature=0
+  )
+  return resp.choices[0].message.content.strip()
