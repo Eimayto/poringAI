@@ -1,21 +1,46 @@
-/* 가운데 정렬 모바일 프레임 */
+/* 가운데 정렬 모바일 프레임 (기본: PC 포함 공통) */
 body{
-  display:flex; justify-content:center;
+  display:flex;
+  justify-content:center;
+  background:var(--bg);
 }
+
 .phone-wrapper{
-  width:100%; max-width:390px; min-height:100vh; background:var(--card);
+  width:100%;
+  max-width:390px;
+  min-height:100vh;
+  background:var(--card);
   box-shadow:0 0 10px rgba(0,0,0,.1);
 }
 
-/* 반응형 */
+/* 반응형: 모바일 */
 @media (max-width: 991px){
-  body{ display:block; background:#fff; }
-  .phone-wrapper{ max-width:none; box-shadow:none; min-height:100vh; }
-  .container-fluid{ padding:8px 8px 88px; }
+  body{
+    display:block;
+    background:#fff;
+  }
+  .phone-wrapper{
+    max-width:none;
+    box-shadow:none;
+    min-height:100vh;
+  }
+  .container-fluid{
+    padding:8px 8px 88px;
+  }
 }
+
+/* 반응형: PC */
 @media (min-width: 992px){
-  body{ background:var(--bg); }
-  .phone-wrapper{ max-width:390px; box-shadow:0 0 10px rgba(0,0,0,.1); }
+  body{
+    display:block;          /* PC에서 flex 해제 */
+    background:var(--bg);
+  }
+  .phone-wrapper{
+    margin:0 auto;          /* 가운데 정렬 */
+    max-width:390px;
+    min-height:100vh;
+    box-shadow:0 0 10px rgba(0,0,0,.1);
+  }
 }
 
 /* 네비게이션 / 오프캔버스 */
@@ -42,4 +67,15 @@ body{
   .offcanvas-body a:hover{ background:#171b21; }
   .card{ border-color:#222833; box-shadow:none; }
   .card-header{ background:#12161e; }
+}
+
+/* 테이블 컬럼 제어 */
+.nowrap{
+  white-space: nowrap;
+}
+
+.col-route{
+  min-width: 160px;        /* 여기 숫자만 취향대로 140~220px 조절 */
+  white-space: normal;     /* 출발→도착은 줄바꿈 허용 */
+  word-break: keep-all;    /* 한글이 글자 단위로 쪼개지는 거 방지 */
 }

@@ -1,8 +1,159 @@
 {% extends "base.html" %}
-
-{% block title %}Menu3 - Poring AI{% endblock %}
+{% block title %}Menu3 - My Page{% endblock %}
 
 {% block content %}
-  <h2 class="mb-3">This is Menu3</h2>
-  <a href = "{{ url_for('index')}}">Click to Go back to Home.</a>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="m-0">내 정보</h2>
+    <span class="text-muted small">user_id: {{ user["user_id"] }}</span>
+  </div>
+
+  <!-- 기본 프로필 카드 -->
+  <div class="card mb-3">
+    <div class="card-header">프로필</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-6">
+          <div class="text-muted small">회원 유형</div>
+          <div class="fw-semibold">{{ user["user_type"] }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">국적</div>
+          <div class="fw-semibold">{{ user["nationality_type"] }}</div>
+        </div>
+
+        <div class="col-6 mt-2">
+          <div class="text-muted small">직군/포지션</div>
+          <div class="fw-semibold">{{ user["position_type"] }}</div>
+        </div>
+        <div class="col-6 mt-2">
+          <div class="text-muted small">소속</div>
+          <div class="fw-semibold">{{ user["division"] }}</div>
+        </div>
+
+        <div class="col-6 mt-2">
+          <div class="text-muted small">가입일</div>
+          <div class="fw-semibold">{{ user["join_date"] }}</div>
+        </div>
+        <div class="col-6 mt-2">
+          <div class="text-muted small">인증일</div>
+          <div class="fw-semibold">{{ user["verify_date"] }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 누적 현황 카드 (users 테이블 값) -->
+  <div class="card mb-3">
+    <div class="card-header">누적 현황(Users)</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-6">
+          <div class="text-muted small">총 이용 횟수</div>
+          <div class="fw-semibold">{{ user["total_usage_count"] }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">평균 이용 시간(분)</div>
+          <div class="fw-semibold">{{ user["avg_usage_minutes"] }}</div>
+        </div>
+        <div class="col-6 mt-2">
+          <div class="text-muted small">누적 결제금액</div>
+          <div class="fw-semibold">{{ user["final_paid_amount"] }}</div>
+        </div>
+        <div class="col-6 mt-2">
+          <div class="text-muted small">보유 포인트</div>
+          <div class="fw-semibold">{{ user["points"] }}</div>
+        </div>
+      </div>
+      <div class="text-muted small mt-2">
+        ※ 이 값들은 users 테이블에 저장된 “요약값”이라 rentals 합계와 다를 수 있음
+      </div>
+    </div>
+  </div>
+
+  <!-- rentals 기반 요약 -->
+  <div class="card mb-3">
+    <div class="card-header">최근 기록 기반 요약(Rentals)</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-6">
+          <div class="text-muted small">대여 횟수</div>
+          <div class="fw-semibold">{{ summary["rental_count"] }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small">총 이용 시간(분)</div>
+          <div class="fw-semibold">{{ summary["total_minutes"] }}</div>
+        </div>
+
+        <div class="col-6 mt-2">
+          <div class="text-muted small">총 결제(최종)</div>
+          <div class="fw-semibold">{{ summary["total_paid"] }}</div>
+        </div>
+        <div class="col-6 mt-2">
+          <div class="text-muted small">결제 성공/실패</div>
+          <div class="fw-semibold">
+            {{ summary["paid_count"] }} / {{ summary["failed_count"] }}
+          </div>
+        </div>
+
+        <div class="col-6 mt-2">
+          <div class="text-muted small">적립 포인트 합</div>
+          <div class="fw-semibold">{{ summary["total_earned_point"] }}</div>
+        </div>
+        <div class="col-6 mt-2">
+          <div class="text-muted small">사용 포인트 합</div>
+          <div class="fw-semibold">{{ summary["total_used_point"] }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 최근 대여 내역 -->
+  <div class="card mb-3">
+    <div class="card-header">최근 대여 내역 (최신 10건)</div>
+    <div class="card-body">
+      {% if recent_rentals and recent_rentals|length > 0 %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th class='nowrap'>시작</th>
+                <th class='nowrap'>종료</th>
+                <th class='nowrap'>자전거</th>
+                <th class='col-route'>출발→도착</th>
+                <th class="text-end nowrap">분</th>
+                <th class='nowrap'>결제</th>
+                <th class="text-end nowrap">최종금액</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in recent_rentals %}
+                <tr>
+                  <td class="small nowrap">{{ r["rental_start_date"] }}</td>
+                  <td class="small nowrap">{{ r["rental_end_date"] }}</td>
+                  <td class="small nowrap">{{ r["bike_serial"] or "-" }}</td>
+                  <td class="small col-route">
+                    {{ r["start_hub_name"] or "-" }} → {{ r["end_hub_name"] or "-" }}
+                  </td>
+                  <td class="text-end small nowrap">{{ r["duration_minutes"] or 0 }}</td>
+                  <td class="small nowrap">
+                    {{ r["payment_status"] }}
+                    {% if r["payment_method"] %} ({{ r["payment_method"] }}){% endif %}
+                  </td>
+                  <td class="text-end nowrap small">{{ r["final_paid_amount"] or 0 }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="text-muted small">
+          사용 포인트/적립 포인트는 상세보기에서 따로 보여줘도 됨 (지금은 표가 길어져서 생략)
+        </div>
+      {% else %}
+        <div class="text-muted">최근 대여 내역이 없습니다.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <a class="btn btn-outline-secondary w-100" href="{{ url_for('index') }}">홈으로</a>
 {% endblock %}
