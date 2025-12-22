@@ -116,6 +116,7 @@
           <table class="table table-sm align-middle">
             <thead>
               <tr>
+                <th class='nowrap'>ID</th>
                 <th class='nowrap'>시작</th>
                 <th class='nowrap'>종료</th>
                 <th class='nowrap'>자전거</th>
@@ -128,6 +129,7 @@
             <tbody>
               {% for r in recent_rentals %}
                 <tr>
+                  <td class="small nowrap">{{ r["rental_id"] }}</td>
                   <td class="small nowrap">{{ r["rental_start_date"] }}</td>
                   <td class="small nowrap">{{ r["rental_end_date"] }}</td>
                   <td class="small nowrap">{{ r["bike_serial"] or "-" }}</td>
