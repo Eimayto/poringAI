@@ -10,13 +10,15 @@ def _find_nearest_hub(user_lat, user_lon, db):
     사용자의 위도/경도를 기반으로 DB에서 가장 가까운 허브 이름을 찾습니다.
     """
     if user_lat is None or user_lon is None:
-        return None
+        print('user_lat, user_lon is None')
+        return None, None
         
     try:
         user_lat = float(user_lat)
         user_lon = float(user_lon)
-    except ValueError:
-        return None
+    except ValueError as e:
+        print(e)
+        return None, None
 
     # menu2.py의 쿼리를 참고하여 모든 허브의 위치를 가져옵니다.
     rows = db.execute("SELECT hub_name, latitude, longitude FROM hubs").fetchall()
