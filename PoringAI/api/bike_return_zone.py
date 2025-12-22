@@ -124,11 +124,11 @@ def bike_return_zone():
             UPDATE rentals
             SET rental_end_date = ?,
                 duration_minutes = ?,
-                end_hub_id = NULL,
+                end_hub_id = ?,
                 payment_status = 'Paid'
             WHERE rental_id = ?
             """,
-            (end_at, duration, rental_id)
+            (end_at, duration, hub_id, rental_id)
         )
         if cur.rowcount != 1:
             db.rollback()
