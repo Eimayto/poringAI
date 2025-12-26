@@ -94,7 +94,6 @@ def bike_return_zone():
             """,
             (user_id,)
         ).fetchone()
-        print("RIDE RAW:", dict(ride))
         if not ride:
             return jsonify({"success": False, "error": "진행 중인 대여가 없습니다."}), 409
 
