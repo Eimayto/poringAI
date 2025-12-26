@@ -2,7 +2,14 @@ from flask import Blueprint, render_template, request, url_for, session, redirec
 from collections import deque
 import time
 import os, json, requests
-from .api import fetch_available_bikes, fetch_available_nearby_bikes, fetch_rent_bike_normal, fetch_rent_recommand, fetch_bike_return_zone
+from .api import (
+    fetch_available_bikes, 
+    fetch_available_nearby_bikes, 
+    fetch_rent_bike_normal, 
+    fetch_rent_recommand, 
+    fetch_bike_return_zone,
+    fetch_bike_return_station
+)
 from datetime import datetime
 
 # 캐시 세팅
@@ -186,7 +193,13 @@ def menu1():
 
             # Station 반납 (TODO)
             if rtype == "STATION":
-              answer = f"'{hub_name}' 허브 Station 반납은 아직 준비 중이에요."
+              print('STATION - 196line')
+              structured, _ = fetch_bike_return_station(
+                hub_name=hub_name,
+                lat=latitude,
+                lon=longitude
+              )
+              answer = structured.get("content") or structured.get("error") or "Station 반납 처리 결과를 확인할 수 없어요."
               _append("system", answer)
               return redirect(url_for("menu1.menu1"))
 

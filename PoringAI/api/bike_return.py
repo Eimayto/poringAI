@@ -176,3 +176,153 @@ def bike_return_zone():
         return jsonify({"success": False, "error": f"오류 발생: {e}"}), 500
 
 
+@bp.route("/bike-return-station", methods=["POST"])
+def bike_return_station():
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "error": "JSON 요청이 필요합니다."}), 400
+
+    user_id = data.get("user_id")
+    hub_name = data.get("hub_name")
+    lat = data.get("lat")
+    lon = data.get("lon")
+
+    if not user_id:
+        return jsonify({"success": False, "error": "user_id가 필요합니다."}), 400
+    if not hub_name:
+        return jsonify({"success": False, "error": "hub_name이 필요합니다."}), 400
+
+    db = get_db()
+
+    try:
+        # (1) user 검증
+        user = db.execute(
+            "SELECT user_id FROM users WHERE user_id = ?",
+            (user_id,)
+        ).fetchone()
+        if not user:
+            return jsonify({"success": False, "error": "존재하지 않는 사용자입니다."}), 404
+
+        # (2) hub 조회
+        hub = db.execute(
+            "SELECT hub_id, hub_name FROM hubs WHERE hub_name = ?",
+            (hub_name,)
+        ).fetchone()
+        if not hub:
+            return jsonify({"success": False, "error": f"'{hub_name}' 허브를 찾을 수 없습니다."}), 404
+
+        hub_id = hub["hub_id"]
+        print("[RETURN_STATION] hub:", hub_name, hub_id)
+
+        # (2-1) 빈 자리 있는 station 선택 (가장 여유 있는 곳 우선)
+        station = db.execute(
+            """
+            SELECT station_id, total_slots, parked_slots
+            FROM stations
+            WHERE hub_id = ?
+              AND parked_slots < total_slots
+            ORDER BY (total_slots - parked_slots) DESC, station_id ASC
+            LIMIT 1
+            """,
+            (hub_id,)
+        ).fetchone()
+
+        if not station:
+            return jsonify({
+                "success": False,
+                "error": f"{hub_name} 허브에 Station 빈 자리가 없습니다. Zone 반납을 이용해 주세요."
+            }), 409
+
+        station_id = station["station_id"]
+        print("[RETURN_STATION] chosen station_id:", station_id)
+
+        # (3) 진행 중 ride 조회
+        ride = db.execute(
+            """
+            SELECT rental_id, bike_id, rental_start_date
+            FROM rentals
+            WHERE user_id = ?
+              AND rental_end_date IS NULL
+            ORDER BY rental_start_date DESC
+            LIMIT 1
+            """,
+            (user_id,)
+        ).fetchone()
+
+        if not ride:
+            return jsonify({"success": False, "error": "진행 중인 대여가 없습니다."}), 409
+
+        rental_id = ride["rental_id"]
+        bike_id = ride["bike_id"]
+
+        # (4) ride 종료
+        end_at = datetime.now().isoformat()
+
+        duration = None
+        try:
+            start_dt = datetime.fromisoformat(ride["rental_start_date"])
+            duration = int((datetime.now() - start_dt).total_seconds() / 60)
+        except Exception:
+            pass
+
+        cur = db.execute(
+            """
+            UPDATE rentals
+            SET rental_end_date = ?,
+                duration_minutes = ?,
+                end_hub_id = ?,
+                payment_status = 'Paid'
+            WHERE rental_id = ?
+            """,
+            (end_at, duration, hub_id, rental_id)
+        )
+        if cur.rowcount != 1:
+            db.rollback()
+            return jsonify({"success": False, "error": "반납 실패: rentals 종료 업데이트가 적용되지 않았습니다."}), 500
+
+        # (5) bike 상태 업데이트 + assigned_sz_id 기록 (Station)
+        db.execute(
+            """
+            UPDATE bikes
+            SET status = 'Returned',
+                assigned_hub_id = ?,
+                assigned_sz_id = ?,
+                where_parked = 'Station',
+                is_active = 1,
+                last_rental_time = ?
+            WHERE bike_id = ?
+            """,
+            (hub_id, station_id, end_at, bike_id)
+        )
+
+        # (6) station 적재 증가
+        st_cur = db.execute(
+            """
+            UPDATE stations
+            SET parked_slots = parked_slots + 1
+            WHERE station_id = ?
+              AND parked_slots < total_slots
+            """,
+            (station_id,)
+        )
+        if st_cur.rowcount != 1:
+            db.rollback()
+            return jsonify({"success": False, "error": "반납 실패: station 적재 업데이트가 적용되지 않았습니다."}), 500
+
+        db.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Station 반납이 완료되었습니다.",
+            "bike_id": bike_id,
+            "hub_name": hub_name,
+            "station_id": station_id,
+            "duration_minutes": duration
+        }), 200
+
+    except sqlite3.Error as e:
+        db.rollback()
+        return jsonify({"success": False, "error": f"DB 오류: {e}"}), 500
+    except Exception as e:
+        db.rollback()
+        return jsonify({"success": False, "error": f"오류 발생: {e}"}), 500
