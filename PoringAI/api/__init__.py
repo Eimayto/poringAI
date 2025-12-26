@@ -8,7 +8,7 @@ from . import generate_sentence
 from . import available_nearby_bikes
 from . import rent
 from . import rent_recommand
-from . import bike_return_zone
+from . import bike_return
 
 
 def fetch_available_bikes(hub_name: str):
@@ -183,3 +183,67 @@ def fetch_bike_return_zone(hub_name=None, lat=None, lon=None):
         "error": f"문장 생성 실패: {e}",
         "fallback": ret_json
       }, 500
+    
+def fetch_bike_return_station(hub_name=None, lat=None, lon=None):
+  """
+  hub_name만 받아서
+  - bike-return-station 호출
+  - generate-sentence 호출
+  """
+
+  if not hub_name:
+    return {"success": False, "error": "허브 이름이 필요합니다."}, 400
+
+  api_url = url_for("api.bike_return_station", _external=True)
+
+  payload = {
+    "user_id": session.get("user_id"),
+    "hub_name": hub_name,
+    "lat": lat,
+    "lon": lon
+  }
+
+  try:
+    res = requests.post(api_url, json=payload, timeout=5)
+    ret_json, ret_status = res.json(), res.status_code
+  except Exception as e:
+    return {"success": False, "error": f"bike-return-station 호출 실패: {e}"}, 500
+
+  if ret_status >= 400:
+    return ret_json, ret_status
+
+  # 자연어 문장 생성
+  gen_url = url_for("api.generate_sentence", _external=True)
+  try:
+    gen_res = requests.post(
+      gen_url,
+      json={
+        "messages_for_model": [
+            {
+              "role": "system",
+              "content": (
+                "너는 자전거 공유 서비스 안내 챗봇이야. "
+                "주어진 API 응답(JSON)을 읽고, "
+                "사용자가 이해하기 쉬운 한국어 한두 문장으로 설명해."
+              )
+            },
+            {
+              "role": "user",
+              "content": f"다음은 bike-return-station API 응답이야:\n{json.dumps(ret_json, ensure_ascii=False)}"
+            }
+        ],
+        "data": {
+          "type": "bike_return_station",
+          "api_response": ret_json
+        }
+      },
+      timeout=10
+    )
+    return gen_res.json(), gen_res.status_code
+
+  except Exception as e:
+    return {
+      "success": False,
+      "error": f"문장 생성 실패: {e}",
+      "fallback": ret_json
+    }, 500
