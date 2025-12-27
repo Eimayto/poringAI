@@ -11,14 +11,23 @@ from . import rent_recommand
 from . import bike_return
 
 
-def fetch_available_bikes(hub_name: str):
+def fetch_available_bikes(hub_name: str, lat=None, lon=None):
   """내부 API(/available-bikes) 호출"""
   api_url = url_for("api.available_bikes", _external=True)
+  params = {"hub_name": hub_name}
+  if lat is not None and lon is not None:
+      params["lat"] = lat
+      params["lon"] = lon
   try:
-    res = requests.get(api_url, params={"hub_name": hub_name}, timeout=5)
+    res = requests.get(api_url, params=params, timeout=5)
     return res.json(), res.status_code
   except Exception as e:
-    return {"hub_name": hub_name, "found": False, "available_bikes": 0, "error": str(e)}, 500
+    return {
+          "hub_name": hub_name,
+          "found": False,
+          "available_bikes": 0,
+          "error": str(e)
+        }, 500
 
     
 def fetch_available_nearby_bikes(lat: float, lon: float):
