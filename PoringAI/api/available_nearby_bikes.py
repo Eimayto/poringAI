@@ -3,7 +3,22 @@ import os, json, requests
 from ..db import get_db
 from . import bp
 from flask import session
-from math import sqrt
+from math import radians, sin, cos, sqrt, atan2
+
+
+def haversine_m(lat1, lon1, lat2, lon2):
+    '''
+    위도 차이를 meter로 바꿔주는 함수
+    '''
+    R = 6371000  # 지구 반지름 (meter)
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
 
 def _find_nearest_hub(user_lat, user_lon, db):
     """
@@ -23,7 +38,7 @@ def _find_nearest_hub(user_lat, user_lon, db):
     # menu2.py의 쿼리를 참고하여 모든 허브의 위치를 가져옵니다.
     rows = db.execute("SELECT hub_name, latitude, longitude FROM hubs").fetchall()
     
-    min_dist_sq = float('inf')
+    min_dist_m = float('inf')
     nearest_hub = None
     
     for hub in rows:
@@ -31,13 +46,16 @@ def _find_nearest_hub(user_lat, user_lon, db):
             continue
         
         # 간단한 유클리드 거리 제곱 계산 (근사치)
-        dist_sq = (user_lat - hub['latitude'])**2 + (user_lon - hub['longitude'])**2
+        dist_m = haversine_m(
+          user_lat, user_lon,
+          hub['latitude'], hub['longitude']
+        )
         
-        if dist_sq < min_dist_sq:
-            min_dist_sq = dist_sq
+        if dist_m < min_dist_m:
+            min_dist_m = dist_m
             nearest_hub = hub['hub_name']
             
-    return nearest_hub, min_dist_sq
+    return nearest_hub, min_dist_m
 
 @bp.route("/available-nearby-bikes", methods=["GET"])
 def available_nearby_bikes():
@@ -53,7 +71,7 @@ def available_nearby_bikes():
     "closest": {
       "hub_id": ...,
       "hub_name": "...",
-      "distance_km": 0.123,
+      "distance": 0.123,
       "available_bikes": 7
     },
     "count_examined": 5
@@ -72,7 +90,7 @@ def available_nearby_bikes():
 
         
   db = get_db()
-  nearest_hub, dist_sq = _find_nearest_hub(lat_raw, lon_raw, db)
+  nearest_hub, dist_m = _find_nearest_hub(lat_raw, lon_raw, db)
   print(f'nearest_hub : {nearest_hub}')
   if nearest_hub == None:
     return jsonify({
@@ -103,7 +121,7 @@ def available_nearby_bikes():
     "hub_name" : nearest_hub,
     "found" : True,
     "available_bikes" : int(row["cnt"]),
-    "distance" : sqrt(dist_sq)
+    "distance" : int(dist_m)
   }
   print(data)
   
