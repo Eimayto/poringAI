@@ -2,15 +2,41 @@ from flask import request, jsonify, url_for
 import os, json, requests
 from ..db import get_db
 from . import bp
+from math import radians, sin, cos, sqrt, atan2
+
+
+def haversine_m(lat1, lon1, lat2, lon2):
+    '''
+    위도 차이를 meter로 바꿔주는 함수
+    '''
+    R = 6371000  # 지구 반지름 (meter)
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
 
 @bp.route("/available-bikes", methods=["GET"])
 def available_bikes():
   hub_name = request.args.get("hub_name")
+  lat = request.args.get("lat")
+  lon = request.args.get("lon")
+  
   if not hub_name:
     return jsonify({"error": "hub_name 쿼리 파라미터가 필요합니다."}), 400
 
   db = get_db()
-  hub = db.execute("SELECT hub_id FROM hubs WHERE hub_name = ?", (hub_name,)).fetchone()
+  hub = db.execute(
+      """
+      SELECT hub_id, latitude, longitude
+      FROM hubs
+      WHERE hub_name = ?
+      """,
+      (hub_name,)
+    ).fetchone()
   if not hub:
     return jsonify({"hub_name" : hub_name, "found" : False, "available_bikes": 0, "error" : f"{hub_name} 허브를 찾을 수 없습니다."}), 200
 
@@ -34,6 +60,17 @@ def available_bikes():
   }
   print(data)
   
+  # 거리 계산 (lat/lon이 들어온 경우만)
+  if lat is not None and lon is not None and hub["latitude"] and hub["longitude"]:
+    try:
+      dist = haversine_m(
+          float(lat), float(lon),
+          hub["latitude"], hub["longitude"]
+      )
+      data["distance"] = int(dist)  # meter
+    except Exception:
+      data["distance"] = None
+
   """내부 API(/available-bikes) 호출"""
   api_url = url_for("api.generate_sentence", _external=True)
   try:
