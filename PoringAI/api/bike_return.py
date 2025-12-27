@@ -3,6 +3,7 @@ from flask import request, jsonify
 from datetime import datetime
 from ..db import get_db
 from . import bp
+from .services.rental_payment import finalize_rental_payment_in_db
 
 
 @bp.route("/bike-return-zone", methods=["POST"])
@@ -100,38 +101,11 @@ def bike_return_zone():
         rental_id = ride["rental_id"]
         bike_id = ride["bike_id"]
 
-        # (4) ride 종료
-        end_at = datetime.now().isoformat()
+        # (4) rentals 종료 + 요금 계산/반영(서비스)
+        #     여기서 charged_amount/final_paid_amount/duration_minutes/rental_end_date/payment_status 다 세팅됨
+        summary = finalize_rental_payment_in_db(db, rental_id=rental_id, end_hub_id=hub_id, payment_method="Mobile")
 
-        duration = None
-        try:
-            start_dt = datetime.fromisoformat(ride["rental_start_date"])
-            duration = int((datetime.now() - start_dt).total_seconds() / 60)
-        except Exception:
-            pass
-        
-        dbg = db.execute("""
-            SELECT rental_id, rental_end_date, typeof(rental_end_date) AS t
-            FROM rentals
-            WHERE rental_id = ?
-            """, (rental_id,)).fetchone()
-        print("DBG rental:", dict(dbg) if dbg else None)
-        print(rental_id)
-
-        cur = db.execute(
-            """
-            UPDATE rentals
-            SET rental_end_date = ?,
-                duration_minutes = ?,
-                end_hub_id = ?,
-                payment_status = 'Paid'
-            WHERE rental_id = ?
-            """,
-            (end_at, duration, hub_id, rental_id)
-        )
-        if cur.rowcount != 1:
-            db.rollback()
-            return jsonify({"success": False, "error": "반납 실패: rentals 종료 업데이트가 적용되지 않았습니다."}), 500
+        end_at = summary["rental_end_date"]
 
         # (5) bike 상태 업데이트 + assigned_sz_id 기록
         db.execute(
@@ -165,7 +139,10 @@ def bike_return_zone():
             "message": "Zone 반납이 완료되었습니다.",
             "bike_id": bike_id,
             "hub_name": hub_name,
-            "duration_minutes": duration
+            "duration_minutes": summary["duration_minutes"],
+            "charged_amount": summary["charged_amount"],
+            "final_paid_amount": summary["final_paid_amount"],
+            "payment_status": summary["payment_status"]
         }), 200
 
     except sqlite3.Error as e:
@@ -255,30 +232,11 @@ def bike_return_station():
         rental_id = ride["rental_id"]
         bike_id = ride["bike_id"]
 
-        # (4) ride 종료
-        end_at = datetime.now().isoformat()
+        # (4) rentals 종료 + 요금 계산/반영(서비스)
+        #     여기서 charged_amount/final_paid_amount/duration_minutes/rental_end_date/payment_status 다 세팅됨
+        summary = finalize_rental_payment_in_db(db, rental_id=rental_id, end_hub_id=hub_id, payment_method="Mobile")
 
-        duration = None
-        try:
-            start_dt = datetime.fromisoformat(ride["rental_start_date"])
-            duration = int((datetime.now() - start_dt).total_seconds() / 60)
-        except Exception:
-            pass
-
-        cur = db.execute(
-            """
-            UPDATE rentals
-            SET rental_end_date = ?,
-                duration_minutes = ?,
-                end_hub_id = ?,
-                payment_status = 'Paid'
-            WHERE rental_id = ?
-            """,
-            (end_at, duration, hub_id, rental_id)
-        )
-        if cur.rowcount != 1:
-            db.rollback()
-            return jsonify({"success": False, "error": "반납 실패: rentals 종료 업데이트가 적용되지 않았습니다."}), 500
+        end_at = summary["rental_end_date"]
 
         # (5) bike 상태 업데이트 + assigned_sz_id 기록 (Station)
         db.execute(
@@ -313,11 +271,13 @@ def bike_return_station():
 
         return jsonify({
             "success": True,
-            "message": "Station 반납이 완료되었습니다.",
+            "message": "Zone 반납이 완료되었습니다.",
             "bike_id": bike_id,
             "hub_name": hub_name,
-            "station_id": station_id,
-            "duration_minutes": duration
+            "duration_minutes": summary["duration_minutes"],
+            "charged_amount": summary["charged_amount"],
+            "final_paid_amount": summary["final_paid_amount"],
+            "payment_status": summary["payment_status"]
         }), 200
 
     except sqlite3.Error as e:
