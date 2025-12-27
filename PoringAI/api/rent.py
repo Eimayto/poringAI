@@ -7,7 +7,7 @@ from datetime import datetime
 @bp.route('/rent-normal', methods=['POST'])
 def rent_bike_normal():
     """
-    자전거 대여를 처리하는 API 엔드포인트. (ERD v_image_fbd067 기준)
+    자전거 대여를 처리하는 API 엔드포인트.
     Request Body (JSON): { "bike_id": 123, "user_id": 1 }
     """
     
@@ -88,7 +88,7 @@ def rent_bike_normal():
             if not parked_location_id:
                 raise Exception("Station 대여인데 assigned_hub_id(hub_id)가 없습니다.")
 
-            db.execute(
+            cur = db.execute(
                 """
                 UPDATE stations
                    SET parked_slots = parked_slots - 1
@@ -97,13 +97,19 @@ def rent_bike_normal():
                 """,
                 (parked_sz_id,)
             )
+            if cur.rowcount != 1:
+                db.rollback()
+                return jsonify({
+                    "success": False,
+                    "error": "해당 Station에 남아있는 자전거가 없습니다."
+                }), 409
             print(parked_sz_id)
 
         elif where_parked == "Zone":
             if not parked_location_id:
                 raise Exception("Zone 대여인데 assigned_hub_id(zone_id)가 없습니다.")
 
-            db.execute(
+            cur = db.execute(
                 """
                 UPDATE zones
                    SET parked_slots = parked_slots - 1
@@ -112,6 +118,12 @@ def rent_bike_normal():
                 """,
                 (parked_sz_id,)
             )
+            if cur.rowcount != 1:
+                db.rollback()
+                return jsonify({
+                    "success": False,
+                    "error": "해당 Station에 남아있는 자전거가 없습니다."
+                }), 409
 
         else:
             return jsonify({
