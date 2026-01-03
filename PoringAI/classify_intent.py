@@ -80,3 +80,31 @@ def classify_rent_intent(text, client):
         temperature=0
     )
     return json.loads(resp.choices[0].message.content)
+
+def classify_mission_intent(text, client):
+  resp = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+      {
+        "role": "system",
+        "content": (
+          "사용자 발화를 보고 자전거 미션 관련 의도를 분류해라.\n"
+          "반드시 JSON만 출력한다.\n\n"
+          "{ \"type\": \"MISSION_PLUG|MISSION_CHECK|NONE\" }\n\n"
+          "MISSION_PLUG 예시:\n"
+          "- 미션 자전거 꽂았어\n"
+          "- 저배터리 자전거 스테이션에 넣었어\n"
+          "- 미션 완료했어\n\n"
+          "MISSION_CHECK 예시:\n"
+          "- 내 미션 뭐야?\n"
+          "- 진행 중인 미션 있어?\n\n"
+          "NONE:\n"
+          "- 반납할게\n"
+          "- 자전거 반납\n"
+        )
+      },
+      {"role": "user", "content": text}
+    ],
+    temperature=0
+  )
+  return json.loads(resp.choices[0].message.content)

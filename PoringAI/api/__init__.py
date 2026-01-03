@@ -275,3 +275,36 @@ def fetch_mission_prepare(mission: dict):
     return res.json(), res.status_code
   except Exception as e:
     return {"success": False, "error": f"missions/prepare 요청 실패: {e}"}, 500
+
+def fetch_mission_plug(bike_id, station_id, latitude, longitude):
+  """
+  내부 API /api/missions/plug 호출
+  """
+  api_url = url_for("api.missions_plug", _external=True)
+
+  payload = {
+    "user_id": session.get("user_id"),
+    "bike_id": bike_id,
+    "station_id": station_id,
+    "latitude" : latitude,
+    "longitude" : longitude
+  }
+
+  try:
+    res = requests.post(api_url, json=payload, timeout=5)
+    return res.json(), res.status_code
+  except Exception as e:
+    return {"success": False, "error": str(e)}, 500
+  
+def fetch_active_mission():
+  api_url = url_for("api.missions_active", _external=True)
+
+  try:
+    res = requests.get(
+      api_url,
+      params={"user_id": session.get("user_id")},
+      timeout=5
+    )
+    return res.json(), res.status_code
+  except Exception as e:
+    return {"success": False, "error": str(e)}, 500

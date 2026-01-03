@@ -10,12 +10,15 @@ from .api import (
     fetch_bike_return_zone,
     fetch_bike_return_station,
     fetch_mission_prepare,
+    fetch_mission_plug,
+    fetch_active_mission,
 )
 from datetime import datetime
 from .classify_intent import (
   classify_return_intent,
   classify_yes_no,
-  classify_rent_intent
+  classify_rent_intent,
+  classify_mission_intent,
 )
 from .config import Config
 
@@ -200,6 +203,71 @@ def menu1():
         answer = f"[MOCK] '{structured['hub_name']}' 허브 이용가능 대수: {structured['available_bikes']}대"
       else:
         try:
+          # 미션수행 의도 확인
+          mission_intent = classify_mission_intent(question, client)
+          if mission_intent.get("type") == "MISSION_CHECK":
+            _append("user", question)
+
+            res, status = fetch_active_mission()
+            if status >= 400 or not res.get("success"):
+              answer = res.get("error") or "미션 정보를 가져오지 못했어요."
+              _append("system", answer)
+              return redirect(url_for("menu1.menu1"))
+
+            mission = res.get("mission")
+            if not mission:
+              answer = "현재 진행 중인 미션이 없어요."
+              _append("system", answer)
+              return redirect(url_for("menu1.menu1"))
+
+            answer = (
+              "📌 진행 중인 미션이 있어요!\n"
+              f"- 저배터리 자전거: {mission['low_battery_bike_id']}\n"
+              f"- 목표 스테이션: {mission['target_station_id']}\n"
+              f"- 보상: {mission['reward']}P\n\n"
+              "자전거를 목표 스테이션에 꽂은 뒤 “미션 완료했어”라고 말해주세요!"
+            )
+            _append("system", answer)
+            return redirect(url_for("menu1.menu1"))
+  
+          if mission_intent.get("type") == "MISSION_PLUG":
+            _append("user", question)
+
+            res, _ = fetch_active_mission()
+            mission = res.get("mission")
+
+            if not mission:
+              answer = "진행 중인 미션이 없어요."
+              _append("system", answer)
+              return redirect(url_for("menu1.menu1"))
+
+            if not latitude or not longitude:
+              answer = "미션 수행을 확인하려면 현재 위치 정보가 필요해요."
+              _append("system", answer)
+              return redirect(url_for("menu1.menu1"))
+
+            res, _ = fetch_mission_plug(
+              bike_id=mission["low_battery_bike_id"],
+              station_id=mission["target_station_id"],
+              latitude=latitude,
+              longitude=longitude
+            )
+
+            if res.get("success"):
+              answer = f"🎉 미션 완료! {res['reward']}P가 적립됐어요!"
+              session.pop("ACTIVE_MISSION", None)
+            else:
+              if not res.get("success"):
+                if res.get("error") == "NO_ACTIVE_MISSION":
+                  answer = "현재 수행 중인 미션이 없어요."
+                elif res.get("error") == "WRONG_STATION":
+                  answer = "지정된 스테이션이 아니에요."
+                else:
+                  answer = res.get('error') or '오류가 발생했습니다.'
+
+            _append("system", answer)
+            return redirect(url_for("menu1.menu1"))
+
           # 반납의도 확인
           ret = classify_return_intent(question, client)
 
