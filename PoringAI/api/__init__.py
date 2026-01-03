@@ -9,7 +9,7 @@ from . import available_nearby_bikes
 from . import rent
 from . import rent_recommand
 from . import bike_return
-
+from . import missions
 
 def fetch_available_bikes(hub_name: str, lat=None, lon=None):
   """내부 API(/available-bikes) 호출"""
@@ -256,3 +256,22 @@ def fetch_bike_return_station(hub_name=None, lat=None, lon=None):
       "error": f"문장 생성 실패: {e}",
       "fallback": ret_json
     }, 500
+  
+def fetch_mission_prepare(mission: dict):
+  """
+  내부 API /api/missions/prepare 호출
+  """
+  api_url = url_for("api.missions_prepare", _external=True)
+
+  payload = {
+    "user_id": session.get("user_id"),
+    "low_battery_bike_id": mission.get("low_battery_bike_id"),
+    "target_station_id": mission.get("target_station_id"),
+    "reward": (mission.get("incentive") or {}).get("amount"),
+  }
+
+  try:
+    res = requests.post(api_url, json=payload, timeout=5)
+    return res.json(), res.status_code
+  except Exception as e:
+    return {"success": False, "error": f"missions/prepare 요청 실패: {e}"}, 500

@@ -8,7 +8,8 @@ from .api import (
     fetch_rent_bike_normal, 
     fetch_rent_recommand, 
     fetch_bike_return_zone,
-    fetch_bike_return_station
+    fetch_bike_return_station,
+    fetch_mission_prepare,
 )
 from datetime import datetime
 from .classify_intent import (
@@ -28,7 +29,8 @@ RETURN_DISTANCE = Config.RETURN_DISTANCE
 WAITING_RETURN_TYPE = Config.WAITING_RETURN_TYPE
 RETURN_CTX_KEY = Config.RETURN_CTX_KEY
 HUB_DESCRIPTION = Config.HUB_DESCRIPTION
-
+WAITING_MISSION_CONFIRM = Config.WAITING_MISSION_CONFIRM
+PENDING_MISSION = Config.PENDING_MISSION
 
 bp = Blueprint('menu1', __name__, url_prefix='/menu1')
 
@@ -104,26 +106,69 @@ def menu1():
     latitude = request.form.get("latitude")
     longitude = request.form.get("longitude")
 
+    if session.get(WAITING_MISSION_CONFIRM):
+      intent = classify_yes_no(question, client)
+
+      mission = session.get(PENDING_MISSION)
+
+      if intent == "YES" and mission:
+        res, status = fetch_mission_prepare(mission)
+
+        if status >= 400 or not res.get("success"):
+          answer = res.get('error') or "미션을 등록하지 못했어요. 잠시 후 다시 시도해 주세요."
+        elif res.get("created") is False:
+          answer = "이미 진행 중인 미션이 있어요. 기존 미션을 완료해 주세요!"
+        else:
+          answer = (
+            "미션을 수락했어요!\n"
+            "해당 자전거를 Station에 꽂으면 자동으로 보상이 지급돼요 🚲"
+          )
+
+      else:
+        answer = "미션을 진행하지 않을게요. 필요하면 다음에 다시 제안할게요!"
+
+      session.pop(WAITING_MISSION_CONFIRM, None)
+      session.pop(PENDING_MISSION, None)
+      session.modified = True
+
+      _append("user", question)
+      _append("system", answer)
+      return redirect(url_for("menu1.menu1"))
+
     if session.get(WAITING_RENT_CONFORM):
       intent = classify_yes_no(question, client)
       if intent == 'YES':
           rec, _ = fetch_rent_recommand(session.get('last_nearby_hub_name'))
 
-          bike_ids = rec.get("bike_ids", [])
-          if not bike_ids:
-            answer = rec.get('error') or (
-              "지금 이 허브에는 바로 대여할 수 있는 자전거가 없어요.\n"
-              "조금 뒤 다시 시도하거나 다른 허브를 이용해 주세요."
-            )
-
+          if not rec or rec.get("success") is False:
+            answer = (rec.get("error") if isinstance(rec, dict) else None) or \
+                     "추천 정보를 가져오지 못했어요. 잠시 후 다시 시도해주세요."
           else:
-            bike_id = bike_ids[0]
+            bike_id = rec.get("rent_bike_id", [])
+            if not bike_id:
+              answer = rec.get('error') or (
+                "지금 이 허브에는 바로 대여할 수 있는 자전거가 없어요.\n"
+                "조금 뒤 다시 시도하거나 다른 허브를 이용해 주세요."
+              )
 
-            structured = fetch_rent_bike_normal(
-              bike_id
-            )[0]
+            else:
+              structured = fetch_rent_bike_normal(bike_id)[0]
+              answer = structured.get('content') or structured.get('error') or "대여 처리 결과를 확인할 수 없어요."
 
-            answer = structured.get('content') or structured.get('error')
+              # 3) 미션 안내 + 세션 저장
+              mission = rec.get("mission") or {}
+              if mission and mission.get("enabled"):
+                session[PENDING_MISSION] = mission
+                session[WAITING_MISSION_CONFIRM] = True
+                session.modified = True
+
+                answer += (
+                  f"\n\n💡 추가 미션 제안!\n"
+                  f"존에 있는 저배터리 자전거({mission['low_battery_bike_id']})를\n"
+                  f"Station({mission['target_station_id']})에 꽂으면 "
+                  f"{mission['incentive']['amount']}P 적립!\n"
+                  f"미션을 수락할까요? (네 / 아니요)"
+                )
 
           # 상태 종료
           session.pop(WAITING_RENT_CONFORM, None)

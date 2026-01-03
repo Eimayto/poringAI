@@ -11,3 +11,6 @@ class Config:
     RETURN_DISTANCE = 10     # 자전거 반납 허용 거리(m)
     WAITING_RETURN_TYPE = "waiting_return_type"
     RETURN_CTX_KEY = "return_ctx"
+    LOW_BATTERY_INCENTIVE = 1000
+    WAITING_MISSION_CONFIRM = "waiting_mission_confirm"
+    PENDING_MISSION = "pending_mission"
