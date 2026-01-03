@@ -16,19 +16,18 @@ from .classify_intent import (
   classify_yes_no,
   classify_rent_intent
 )
+from .config import Config
 
 # 캐시 세팅
-HIST_KEY = "menu1_hist" # Flask session에 저장할 키
-MAX_MSGS = 16            # 최근 N개만 잡기
-TTL_SEC = 60 * 30      # 30분 TTL, 0이면 비활성
-WAITING_RENT_CONFORM = 'waiting_rent_conform'
-RECOMMAND_DISTANCE = 100 # meter
-RETURN_DISTANCE = 10   # meter
-WAITING_RETURN_TYPE = "waiting_return_type"
-RETURN_CTX_KEY = "return_ctx"
-HUB_DESCRIPTION = '''
-허브 이름에는 무은재기념관, 학생회관, 환경공학동, 생활관21동, 생활관3동, 생활관12동, 생활관15동, 박태준학술정보관, 친환경소재대학원, 제1실험동, 기계실험동, 가속기IBS가 있어. 지역에는 교사지역, 생활관지역, 인화지역, 가속기&연구실험동이 있어. 교사지역에 있는 허브로는 무은재기념관, 학생회관, 환경공학동이 있어. 생활관지역에는 생활관21동, 생활관3동, 생활관12동, 생활관15동이 있어. 인화지역에 있는 허브는 박태준학술정보관, 친환경소재대학원이 있어. 가속기&연구실험동에 있는 허브는 제1실험동, 기계실험동, 가속기IBS가 있어.
-'''
+HIST_KEY = Config.HIST_KEY
+MAX_MSGS = Config.MAX_MSGS
+TTL_SEC = Config.TTL_SEC
+WAITING_RENT_CONFORM = Config.WAITING_RENT_CONFORM
+RECOMMAND_DISTANCE = Config.RECOMMAND_DISTANCE
+RETURN_DISTANCE = Config.RETURN_DISTANCE
+WAITING_RETURN_TYPE = Config.WAITING_RETURN_TYPE
+RETURN_CTX_KEY = Config.RETURN_CTX_KEY
+HUB_DESCRIPTION = Config.HUB_DESCRIPTION
 
 
 bp = Blueprint('menu1', __name__, url_prefix='/menu1')
