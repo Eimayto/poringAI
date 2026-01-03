@@ -6,6 +6,7 @@ body{
 }
 
 .phone-wrapper{
+  position:relative;
   width:100%;
   max-width:390px;
   min-height:100vh;
@@ -78,4 +79,10 @@ body{
   min-width: 160px;        /* 여기 숫자만 취향대로 140~220px 조절 */
   white-space: normal;     /* 출발→도착은 줄바꿈 허용 */
   word-break: keep-all;    /* 한글이 글자 단위로 쪼개지는 거 방지 */
+}
+
+.flash-toast{
+  position: absolute;   
+  top: 8px;
+  z-index: 1030;      /*  offcanvas(1045)보다 낮게 */
 }

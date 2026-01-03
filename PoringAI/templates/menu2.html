@@ -2,6 +2,24 @@
 {% block title %}Menu2 - Poring AI{% endblock %}
 
 {% block content %}
+{% if flash_msg %}
+  <div class="alert alert-{{ flash_msg.type }} alert-dismissible fade show flash-toast"
+       role="alert">
+    {{ flash_msg.text }}
+    <button type="button"
+            class="btn-close"
+            data-bs-dismiss="alert"
+            aria-label="Close"></button>
+  </div>
+  <script>
+    setTimeout(() => {
+      const alert = document.querySelector('.flash-toast');
+      if (alert) {
+        alert.classList.remove('show');
+      }
+    }, 3000);
+  </script>
+{% endif %}
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
 
 <style>
@@ -116,6 +134,7 @@
 <script>
   // 서버에서 전달된 허브 데이터
   const HUBS = {{ hubs|tojson }};
+  const RENT_URL = "{{ url_for('menu2.menu2_rent') }}";
 
   // 초기 중심(원하면 서버에서 계산해서 전달 가능)
   const INIT = { lat: 36.0129, lng: 129.3245, zoom: 16 };
@@ -157,9 +176,57 @@
   // 바텀시트 엽/닫 + 내용
   const sheet = document.getElementById('sheet');
   const sheetBody = document.getElementById('sheetBody');
+  function categoryBadge(cat){
+    if (cat === 1) return `<span class="tag" style="border-color:#c8e6c9;background:#e8f5e9;">1 Station·완충</span>`;
+    if (cat === 3) return `<span class="tag" style="border-color:#bbdefb;background:#e3f2fd;">3 Zone·완충</span>`;
+    if (cat === 2) return `<span class="tag" style="border-color:#ffe0b2;background:#fff3e0;">2 Station·부족</span>`;
+    return `<span class="tag">4 Zone·부족</span>`;
+  }
+
+  function bikesTable(h){
+    const bikes = h.top_bikes || [];
+    if (!bikes.length) return `<div class="meta">추천 자전거가 없습니다.</div>`;
+
+    const rows = bikes.map(b => `
+      <tr>
+        <td class="small nowrap">${b.bike_id}</td>
+        <td class="small nowrap">${b.serial_number ?? '-'}</td>
+        <td class="small nowrap">${b.where_parked ?? '-'}</td>
+        <td class="small text-end nowrap">${b.battery_level_int ?? 0}</td>
+        <td class="small nowrap">${categoryBadge(b.category)}</td>
+        <td class="text-end nowrap">
+          <form method="POST" action="${RENT_URL}" style="margin:0;">
+            <input type="hidden" name="bike_id" value="${b.bike_id}">
+            <input type="hidden" name="hub_id" value="${h.hub_id}">
+            <button type="submit" class="btn btn-sm btn-primary">대여</button>
+          </form>
+        </td>
+      </tr>
+    `).join('');
+
+    return `
+      <div class="table-responsive" style="margin-top:8px;">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th class="nowrap">ID</th>
+              <th class="nowrap">시리얼</th>
+              <th class="nowrap">위치</th>
+              <th class="text-end nowrap">배터리</th>
+              <th class="nowrap">카테고리</th>
+              <th class="text-end nowrap"></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
   function openSheet(h) {
     sheet.classList.add('open');
     const perc = h.total_sum ? Math.round((h.parked_sum / h.total_sum) * 100) : 0;
+
     sheetBody.innerHTML = `
       <div class="poi-title">${h.hub_name ?? 'Hub #' + h.hub_id}</div>
       <div class="meta">좌표: ${(+h.latitude).toFixed(6)}, ${(+h.longitude).toFixed(6)}</div>
@@ -169,6 +236,8 @@
         <span class="tag">#postech</span>
       </div>
       <hr/>
+      <div class="poi-title" style="font-size:15px;">추천 자전거</div>
+      ${bikesTable(h)}
     `;
   }
   function closeSheet(){ sheet.classList.remove('open'); }
