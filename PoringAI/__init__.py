@@ -1,5 +1,5 @@
 import os
-from flask import (Flask, render_template,)
+from flask import (Flask, render_template,redirect,url_for)
 
 def create_app(test_config = None):
   app = Flask(__name__, instance_relative_config = True)
@@ -21,7 +21,8 @@ def create_app(test_config = None):
 
   @app.route('/')
   def index():
-    return render_template('index.html')
+    return redirect(url_for("menu1.menu1"))
+    # return render_template('index.html')
 
   from . import db
   db.init_app(app)
