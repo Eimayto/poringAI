@@ -110,14 +110,20 @@ def menu1():
           rec, _ = fetch_rent_recommand(session.get('last_nearby_hub_name'))
 
           bike_ids = rec.get("bike_ids", [])
-          if bike_ids:
-              bike_id = bike_ids[0]
+          if not bike_ids:
+            answer = rec.get('error') or (
+              "지금 이 허브에는 바로 대여할 수 있는 자전거가 없어요.\n"
+              "조금 뒤 다시 시도하거나 다른 허브를 이용해 주세요."
+            )
 
-              structured = fetch_rent_bike_normal(
-                  bike_id
-              )[0]
+          else:
+            bike_id = bike_ids[0]
 
-              answer = structured.get('content') or structured.get('error')
+            structured = fetch_rent_bike_normal(
+              bike_id
+            )[0]
+
+            answer = structured.get('content') or structured.get('error')
 
           # 상태 종료
           session.pop(WAITING_RENT_CONFORM, None)
