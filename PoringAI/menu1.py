@@ -246,7 +246,7 @@ def menu1():
             # 허브 이름이 없으면 -> nearby
             else:
                 if not latitude or not longitude:
-                  answer = "현재 위치 정보가 필요해요. 위치 권한을 켜고 다시 말해줘."
+                  answer = "현재 위치 정보가 필요해요. 위치 권한을 켜고 다시 말해주세요."
                   _append("system", answer)
                   return redirect(url_for("menu1.menu1"))
 
